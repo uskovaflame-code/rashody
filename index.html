@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="light">
+<html lang="ru" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -872,17 +872,29 @@ function systemTheme(){
   try { if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light'; } catch(e){}
   return 'dark';
 }
+// The published design opens in dark mode. Give this design its own appearance preference.
+var emberThemeKey = 'exp_appearance_ember_v1';
+function emberThemePreference(){
+  var preference = lsGet(emberThemeKey);
+  return ['auto', 'light', 'dark'].indexOf(preference) >= 0 ? preference : 'dark';
+}
+
 function applyTheme(){
-  var t = (state.theme === 'auto') ? systemTheme() : state.theme;
+  var preference = emberThemePreference();
+  var t = preference === 'auto' ? systemTheme() : preference;
   document.documentElement.setAttribute('data-theme', t);
-  try { if (tg){ tg.setHeaderColor(THEME_BG[t]); tg.setBackgroundColor(THEME_BG[t]); } } catch(e){}
+  if (tg) {
+    try { tg.setHeaderColor(THEME_BG[t]); } catch(e){}
+    try { tg.setBackgroundColor(THEME_BG[t]); } catch(e){}
+    try { if (tg.setBottomBarColor) tg.setBottomBarColor(THEME_BG[t]); } catch(e){}
+  }
 }
 try {
   if (window.matchMedia) window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(){
-    if (state.theme === 'auto') applyTheme();
+    if (emberThemePreference() === 'auto') applyTheme();
   });
 } catch(e){}
-try { if (tg && tg.onEvent) tg.onEvent('themeChanged', function(){ if (state.theme === 'auto') applyTheme(); }); } catch(e){}
+try { if (tg && tg.onEvent) tg.onEvent('themeChanged', function(){ if (emberThemePreference() === 'auto') applyTheme(); }); } catch(e){}
 
 /* ============ Данные ============ */
 var BASE_CATS = [
@@ -1229,7 +1241,7 @@ function renderMore(){
     return '<button class="chip" data-cur="'+c+'" aria-pressed="'+(state.currency===c)+'">'+c+'</button>';
   }).join('');
   document.querySelectorAll('#themeSeg button').forEach(function(b){
-    b.setAttribute('aria-pressed', String(b.dataset.theme === state.theme));
+    b.setAttribute('aria-pressed', String(b.dataset.theme === emberThemePreference()));
   });
   document.getElementById('customCats').innerHTML = state.customCats.length
     ? state.customCats.map(function(c){ return '<button class="chip" data-delcat="'+esc(c)+'">'+esc(c)+' ✕</button>'; }).join('')
@@ -1436,7 +1448,9 @@ document.getElementById('sheet').addEventListener('click', function(e){
 
 document.getElementById('themeSeg').addEventListener('click', async function(e){
   var b = e.target.closest('[data-theme]'); if(!b) return;
-  state.theme = b.dataset.theme; haptic();
+  state.theme = b.dataset.theme;
+  lsSet(emberThemeKey, state.theme);
+  haptic();
   applyTheme(); await persist(); renderMore();
 });
 document.getElementById('curChips').addEventListener('click', async function(e){
@@ -1608,6 +1622,7 @@ var refinedOpenSheet=openSheet;openSheet=function(id){refinedOpenSheet(id);updat
 
 /* ============ Старт ============ */
 (async function init(){
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   applyTheme();
   await restore();
   applyTheme();
@@ -1619,6 +1634,7 @@ var refinedOpenSheet=openSheet;openSheet=function(id){refinedOpenSheet(id);updat
   B.value = 'm:'+t.getFullYear()+'-'+pad(t.getMonth()+1);
   renderCmpCats();
   renderAll();
+  window.scrollTo(0, 0);
   document.getElementById('loadingNote').hidden=true;
 })();
 </script>
